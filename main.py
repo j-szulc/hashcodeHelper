@@ -1,4 +1,5 @@
 from coconut_shell import *
+import sys
 
 # {path: numOfThreads
 inputs = {"test.txt": 1}
@@ -10,36 +11,47 @@ worker = "python3 worker.py"
 results = {key: (None,0) for key in inputs}
 
 # Custom Unicode characters from the Private Use section
+# Separates messages
+separator = '\uE069'
 
-# Separates solution from solutionScore
-smallSeparator = '\uE069'
+class Msg:
+    def __init__(self,type,data):
+        self.type = type
+        self.data = data
 
-# Separates solution+smallSeparator+solutionScore from each other
-bigSeparator = '\uE420'
+def getMessage(src=input):
+    line = separator
+    while line == separator:
+        line = src()
+    result = []
+    while line != separator:
+        result.append(line)
+        line = src()
+    return Msg(result[0], result[1:])
 
-def supervise(inputPath):
-    with open(inputPath,"r") as file:
-        readingSolution = True
-        currentSolution = []
-        currentScore = None
-        for line in sh(worker)(file.readlines()):
-            if line == smallSeparator:
-                    assert readingSolution
-                    readingSolution = False
-            elif line == bigSeparator:
-                    assert not readingSolution
-                    if currentScore > results[inputPath][1]:
-                        results[inputPath]=(currentSolution,currentScore)
-                    readingSolution = True
-                    currentSolution = []
-                    currentScore = None
-            else:
-                assert smallSeparator not in line
-                assert bigSeparator not in line
-                if readingSolution:
-                    currentSolution.append(line)
-                else:
-                    currentScore = int(line)
+def sendMessage(msgType, msgData):
+    print(separator)
+    print(msgType)
+    for line in msgData:
+        print(line)
+    print(separator)
 
-supervise("test.txt")
-print(results)
+def requestInput():
+    sendMessage("REQUEST_INPUT",[])
+
+def shouldSubmit(score):
+    sendMessage("SHOULD_SUBMIT",[score])
+    msg = getMessage()
+    return score > int(msg.data[0])
+
+def startSubmit():
+    print(separator)
+    print("SUBMIT")
+
+def endSubmit():
+    print(separator)
+
+#def supervise(inputPath):
+
+
+print(sh(worker)([str(3),separator,"RES_SHOULD_SUBMIT",str(3),separator]).read())
