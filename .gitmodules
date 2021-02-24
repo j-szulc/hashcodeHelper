@@ -1,0 +1,3 @@
+[submodule "coconut_shell"]
+	path = coconut_shell
+	url = https://github.com/j-szulc/coconut_shell.git
