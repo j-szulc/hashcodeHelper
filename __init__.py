@@ -1,12 +1,15 @@
 from coconut_shell import *
 import sys
+import os
+import signal
+import atexit
 import threading
 
 # {path: numOfThreads
-inputs = {"test.txt": 1}
+inputs = {"c_many_ingredients.in": 8}
 
 # command to execute worker
-worker = "python3 worker.py"
+worker = "pypy3 worker.py"
 
 # {inputPath: (solution, solutionScore)}
 results = {key: (None,0) for key in inputs}
@@ -16,6 +19,10 @@ mutex = threading.Lock()
 # Separates messages
 separator = '\uE069'
 
+ends = []
+
+debug = True
+
 class Msg:
     def __init__(self,type,data):
         self.type = type
@@ -24,6 +31,13 @@ class Msg:
         return "TYPE: {}\nDATA:\n{}".format(self.type,"\n".join(self.data))
 
 def getMessage(src=input):
+    if debug:
+        oldSrc = src
+        def debugSrc():
+            line = oldSrc()
+            print(line,file=sys.stderr)
+            return line
+        src = debugSrc
     line = separator
     while line == separator:
         line = src()
@@ -49,9 +63,10 @@ def shouldSubmit(score):
     result = score > int(msg.data[0])
     return result
 
-def startSubmit():
+def startSubmit(score):
     print(separator)
     print("SUBMIT")
+    print(score)
 
 def endSubmit():
     print(separator)
@@ -67,7 +82,7 @@ def supervise(inputPath):
         try:
             while True:
                 m = getMessage(lambda: next(w))
-                print(m)
+                #print(m)
                 if m.type == "REQUEST_INPUT":
                     yield from sh("cat {}".format(inputPath))
                 elif m.type == "REPORT":
@@ -77,25 +92,39 @@ def supervise(inputPath):
                     mutex.release()
                     yield from res
                 elif m.type == "SUBMIT":
-                    score = m.data[0]
+                    score = int(m.data[0])
                     rest = m.data[1:]
                     mutex.acquire()
-                    if int(score) > results[inputPath][1]:
+                    old = results[inputPath][1]
+                    if score > old:
+                        msg = "New result for {}!: {} -> {}".format(inputPath,old,score)
+                        if old != 0:
+                            msg += " : improved by {}%".format(100*((score/old)-1))
+                        print(msg)
                         results[inputPath] = (rest,score)
                     mutex.release()
         except StopIteration:
             pass
+        w.wait()
         end.release()
     w = sh(worker)(helper())
     init.release()
-    w.wait()
-    end.acquire()
+    return end
 
-def test():
-    print(sh(worker)([str(3),separator,"RES_SHOULD_SUBMIT",str(3),separator]).read())
+def scores():
+    return [result[1] for result in results.values()]
+
+def wait():
+    for lock in ends:
+        lock.acquire()
 
 from time import sleep
 if __name__ == "__main__":
-    supervise("test.txt")
-    supervise("test.txt")
+    os.setpgrp()  # create new process group, become its leader
+    for (path, nOfCores) in inputs.items():
+        for i in range(nOfCores):
+            ends.append(supervise(path))
+    atexit.register(lambda: os.killpg(0, signal.SIGKILL))  # kill all processes in my group
+
+
     #test()
