@@ -4,6 +4,7 @@ import os
 import signal
 import atexit
 import threading
+import pickle
 
 # {path: numOfThreads
 inputs = {"c_many_ingredients.in": 8}
@@ -13,7 +14,31 @@ worker = "pypy3 worker.py"
 
 # {inputPath: (solution, solutionScore)}
 results = {key: (None,0) for key in inputs}
+resultPath = "results.json"
 mutex = threading.Lock()
+
+def save():
+    mutex.acquire()
+    try:
+        pickle.dump(results, open(resultPath,"wb"))
+    finally:
+        mutex.release()
+
+def load():
+    mutex.acquire()
+    try:
+        global results
+        results = pickle.load(open(resultPath,"rb"))
+    except:
+        pass
+    finally:
+        mutex.release()
+
+if __name__ == "__main__":
+    try:
+        load()
+    except:
+        pass
 
 # Custom Unicode characters from the Private Use section
 # Separates messages
@@ -21,7 +46,7 @@ separator = '\uE069'
 
 ends = []
 
-debug = True
+debug = False
 
 class Msg:
     def __init__(self,type,data):
