@@ -5,6 +5,7 @@ import signal
 import atexit
 import threading
 import pickle
+import time
 
 # {path: numOfThreads
 inputs = {"c_many_ingredients.in": 8}
@@ -17,28 +18,8 @@ results = {key: (None,0) for key in inputs}
 resultPath = "results.json"
 mutex = threading.Lock()
 
-def save():
-    mutex.acquire()
-    try:
-        pickle.dump(results, open(resultPath,"wb"))
-    finally:
-        mutex.release()
-
-def load():
-    mutex.acquire()
-    try:
-        global results
-        results = pickle.load(open(resultPath,"rb"))
-    except:
-        pass
-    finally:
-        mutex.release()
-
-if __name__ == "__main__":
-    try:
-        load()
-    except:
-        pass
+# Automatically load existing backup if exists
+autoLoad = True
 
 # Custom Unicode characters from the Private Use section
 # Separates messages
@@ -47,6 +28,38 @@ separator = '\uE069'
 ends = []
 
 debug = False
+
+autoBackup = True
+
+backupDebug = True
+
+# in seconds
+backupInterval = 10
+
+def save():
+    mutex.acquire()
+    try:
+        pickle.dump(results, open(resultPath, "wb"))
+    finally:
+        mutex.release()
+
+
+def load():
+    mutex.acquire()
+    try:
+        global results
+        results = pickle.load(open(resultPath, "rb"))
+    except:
+        pass
+    finally:
+        mutex.release()
+
+def loopedBackup():
+    while True:
+        time.sleep(backupInterval)
+        save()
+        if backupDebug:
+            print("Backup successful!",file=sys.stderr)
 
 class Msg:
     def __init__(self,type,data):
@@ -145,6 +158,13 @@ def wait():
 
 from time import sleep
 if __name__ == "__main__":
+    if autoLoad:
+        try:
+            load()
+        except:
+            pass
+    if autoBackup:
+        fork(loopedBackup,daemon=True)
     os.setpgrp()  # create new process group, become its leader
     for (path, nOfCores) in inputs.items():
         for i in range(nOfCores):
