@@ -11,7 +11,7 @@ import time
 inputs = {"c_many_ingredients.in": 8}
 
 # command to execute worker
-worker = "pypy3 worker.py"
+worker = "/home/james/.local/share/virtualenvs/hashcodeHelper-D1Ml_3Lv/bin/python smartWorker.py"
 
 # {inputPath: (solution, solutionScore)}
 results = {key: (None,0) for key in inputs}
@@ -19,7 +19,7 @@ resultPath = "results.json"
 mutex = threading.Lock()
 
 # Automatically load existing backup if exists
-autoLoad = True
+autoLoad = False
 
 # Custom Unicode characters from the Private Use section
 # Separates messages
@@ -31,7 +31,7 @@ debug = False
 
 autoBackup = True
 
-backupDebug = True
+backupDebug = False
 
 # in seconds
 backupInterval = 10
